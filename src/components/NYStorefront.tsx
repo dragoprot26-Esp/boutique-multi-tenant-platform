@@ -146,8 +146,9 @@ export default function NYStorefront({ tenant, products, onCreateOrder, language
 
   const totalCartAmount = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
-  // Generate stylized SVG QR Code representing URL
-  const publicStoreUrl = `${window.location.origin}/store/${tenant.id}`;
+  // Link público REAL de la tienda (para clientes) y su QR escaneable
+  const publicStoreUrl = `${window.location.origin}/?codigo=${encodeURIComponent(tenant.license || tenant.id)}`;
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data=${encodeURIComponent(publicStoreUrl)}`;
 
   return (
     <div id="ny-public-storefront" className="bg-stone-50 text-neutral-900 min-h-screen font-sans antialiased selection:bg-neutral-900 selection:text-white">
@@ -765,35 +766,12 @@ export default function NYStorefront({ tenant, products, onCreateOrder, language
             {/* Stylized QR Card */}
             <div className="bg-stone-50 border border-stone-100 p-5 rounded-xl flex flex-col items-center gap-4 mb-6 shadow-sm">
               <div className="w-44 h-44 bg-white border border-stone-200 p-3 rounded-lg flex items-center justify-center shadow-inner relative group">
-                {/* SVG Mock QR Code with tenant logo inside */}
-                <svg viewBox="0 0 100 100" className="w-full h-full text-neutral-900">
-                  <rect width="100" height="100" fill="white" />
-                  {/* Outer position detection markers */}
-                  <rect x="5" y="5" width="22" height="22" fill="currentColor" />
-                  <rect x="8" y="8" width="16" height="16" fill="white" />
-                  <rect x="11" y="11" width="10" height="10" fill="currentColor" />
-
-                  <rect x="73" y="5" width="22" height="22" fill="currentColor" />
-                  <rect x="76" y="8" width="16" height="16" fill="white" />
-                  <rect x="79" y="11" width="10" height="10" fill="currentColor" />
-
-                  <rect x="5" y="73" width="22" height="22" fill="currentColor" />
-                  <rect x="8" y="76" width="16" height="16" fill="white" />
-                  <rect x="11" y="79" width="10" height="10" fill="currentColor" />
-
-                  {/* Alignment markers and details */}
-                  <rect x="77" y="77" width="10" height="10" fill="currentColor" />
-                  <rect x="80" y="80" width="4" height="4" fill="white" />
-
-                  {/* Randomized pixel code lines */}
-                  <path d="M35,10 h5 v5 h-5 z M45,10 h8 v5 h-8 z M60,10 h5 v5 h-5 z M35,20 h10 v5 h-10 z M55,20 h10 v5 h-10 z M35,30 h5 v5 h-5 z M45,30 h15 v5 h-15 z M5,35 h15 v5 h-15 z M25,40 h10 v5 h-10 z M40,40 h5 v5 h-5 z M50,40 h15 v5 h-15 z M5,45 h10 v5 h-10 z M20,45 h5 v5 h-5 z M30,45 h15 v5 h-15 z M50,45 h8 v5 h-8 z M65,45 h10 v5 h-10 z M5,55 h12 v5 h-12 z M22,55 h8 v5 h-8 z M35,55 h10 v5 h-10 z M55,55 h10 v5 h-10 z M5,65 h5 v5 h-5 z M15,65 h10 v5 h-10 z M30,65 h20 v5 h-20 z M55,65 h5 v5 h-5 z M35,75 h15 v5 h-15 z M55,75 h8 v5 h-8 z M35,85 h10 v5 h-10 z M50,85 h15 v5 h-15 z M35,93 h25 v4 h-25 z M65,93 h10 v4 h-10 z" fill="currentColor" />
-                  
-                  {/* Small inner logo brand cover */}
-                  <rect x="38" y="38" width="24" height="24" fill="white" rx="3" stroke="currentColor" strokeWidth="1.5" />
-                  <text x="50" y="52" fontSize="6" fontFamily="serif" fontWeight="bold" textAnchor="middle" fill="currentColor">
-                    {tenant.logoUrl.slice(0, 4)}
-                  </text>
-                </svg>
+                {/* QR REAL escaneable → link público de la tienda */}
+                <img
+                  src={qrImgUrl}
+                  alt="QR de la tienda"
+                  className="w-full h-full object-contain"
+                />
               </div>
 
               <div className="text-center">
@@ -806,8 +784,8 @@ export default function NYStorefront({ tenant, products, onCreateOrder, language
 
             <p className="text-[11px] text-neutral-400 mb-6 leading-normal">
               {language === 'en'
-                ? 'This QR code provides direct access so your customers can view your footwear catalog on their mobile device.'
-                : 'Este QR simula el link de acceso rápido para que tus clientes vean tus nuevos productos de calzado desde su celular.'}
+                ? 'Scan this QR to open your boutique directly on any phone — your customers see your live catalog and can place orders.'
+                : 'Escaneá este QR para abrir tu tienda en cualquier celular. Tus clientes ven el catálogo real y pueden hacer pedidos.'}
             </p>
 
             <button
