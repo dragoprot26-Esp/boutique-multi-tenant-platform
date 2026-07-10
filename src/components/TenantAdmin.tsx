@@ -1089,7 +1089,9 @@ export default function TenantAdmin({
         <div className="p-4 border-t border-neutral-800">
           <div className="bg-neutral-950 p-3 rounded-lg border border-neutral-800 mb-3 text-[11px] text-neutral-400">
             <span className="text-stone-300 font-semibold block">{tenant.name}</span>
-            <span className="font-mono text-[10px]">Lic: {tenant.license}</span>
+            <span className="font-mono text-[10px]">
+              {role === 'collaborator' ? (currentCollaborator?.name || 'Vendedor') : 'Dueño / Administrador'}
+            </span>
           </div>
           <button
             id="admin-logout-btn"
