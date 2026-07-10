@@ -34,6 +34,8 @@ export interface Collaborator {
   tenantId: string;
   name: string;
   phone: string;
+  username?: string;   // usuario de acceso al panel (vendedor)
+  password?: string;   // contraseña del vendedor (mín. 6)
   avatarUrl: string;
   onlineStatus: 'active' | 'inactive'; // green/red traffic light
   salesCount: number;
