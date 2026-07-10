@@ -96,6 +96,8 @@ export default function TenantAdmin({
   const [editingColab, setEditingColab] = useState<Collaborator | null>(null);
   const [colabName, setColabName] = useState('');
   const [colabPhone, setColabPhone] = useState('');
+  const [colabUsername, setColabUsername] = useState('');
+  const [colabPassword, setColabPassword] = useState('');
   const [colabAvatar, setColabAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80');
 
   // Push notification state simulation
@@ -376,6 +378,8 @@ export default function TenantAdmin({
     setEditingColab(null);
     setColabName('');
     setColabPhone('');
+    setColabUsername('');
+    setColabPassword('');
     setColabAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80');
     setShowColabModal(true);
   };
@@ -384,6 +388,8 @@ export default function TenantAdmin({
     setEditingColab(col);
     setColabName(col.name);
     setColabPhone(col.phone);
+    setColabUsername(col.username || '');
+    setColabPassword(col.password || '');
     setColabAvatar(col.avatarUrl);
     setShowColabModal(true);
   };
@@ -391,12 +397,20 @@ export default function TenantAdmin({
   const handleSaveColab = (e: React.FormEvent) => {
     e.preventDefault();
     if (!colabName || !colabPhone) return;
+    const uName = colabUsername.trim();
+    const uPass = colabPassword.trim();
+    if (!uName || uPass.length < 6) {
+      alert('El vendedor necesita un usuario y una contraseña de al menos 6 caracteres para poder ingresar al panel.');
+      return;
+    }
 
     const colabData: Collaborator = {
       id: editingColab ? editingColab.id : `colab-${Date.now()}`,
       tenantId: tenant.id,
       name: colabName,
       phone: colabPhone,
+      username: uName,
+      password: uPass,
       avatarUrl: colabAvatar,
       onlineStatus: editingColab ? editingColab.onlineStatus : 'active',
       salesCount: editingColab ? editingColab.salesCount : 0,
@@ -2523,6 +2537,37 @@ export default function TenantAdmin({
                     onChange={(e) => setColabPhone(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-100 font-mono"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-neutral-950/60 border border-amber-500/20 rounded-lg p-3">
+                  <div className="col-span-2">
+                    <p className="text-[10px] text-amber-400/90 font-mono uppercase tracking-wider">🔑 Acceso al panel del vendedor</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1">Usuario</label>
+                    <input
+                      type="text"
+                      placeholder="ej: aria"
+                      value={colabUsername}
+                      onChange={(e) => setColabUsername(e.target.value)}
+                      autoComplete="off"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-100 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1">Contraseña</label>
+                    <input
+                      type="text"
+                      placeholder="mín. 6 caracteres"
+                      value={colabPassword}
+                      onChange={(e) => setColabPassword(e.target.value)}
+                      autoComplete="off"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-100 font-mono"
+                    />
+                  </div>
+                  <p className="col-span-2 text-[10px] text-neutral-500 leading-relaxed">
+                    Con estos datos el vendedor entra al panel desde el botón 🛡️ de la tienda (opción vendedor). Cada uno ve su versión reducida del panel.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
