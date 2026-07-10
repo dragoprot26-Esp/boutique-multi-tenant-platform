@@ -1,0 +1,6 @@
+{
+  "name": "Boutique Multi-Tenant Platform",
+  "description": "Plataforma multi-inquilino de calzado de lujo estilo Nueva York con portal de administración, colaboradores, pedidos y catálogo público elegante.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
