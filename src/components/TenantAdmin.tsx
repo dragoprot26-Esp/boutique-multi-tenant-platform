@@ -31,6 +31,8 @@ interface TenantAdminProps {
   language: 'es' | 'en';
   onChangeLanguage: (lang: 'es' | 'en') => void;
   onChangeRole?: (role: 'customer' | 'admin' | 'collaborator') => void;
+  presence?: Record<string, { online: boolean; last_seen: string }>;
+  onKickColab?: (usuario: string) => void;
 }
 
 export default function TenantAdmin({
@@ -49,8 +51,18 @@ export default function TenantAdmin({
   language,
   onChangeLanguage,
   onChangeRole,
+  presence,
+  onKickColab,
 }: TenantAdminProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS.es;
+  // ¿Está online un colaborador? (presencia real; latido reciente < 90s)
+  const isColabOnline = (col: Collaborator): boolean => {
+    const p = presence && col.username ? presence[col.username.toLowerCase()] : undefined;
+    if (!p) return false;
+    if (!p.online) return false;
+    const last = p.last_seen ? new Date(p.last_seen).getTime() : 0;
+    return (Date.now() - last) < 90000;
+  };
   // Navigation
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'collaborators' | 'settings'>('dashboard');
   
@@ -1803,10 +1815,10 @@ export default function TenantAdmin({
                       {/* Top status bar */}
                       <div className="flex justify-between items-center mb-4">
                         <span className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
-                          col.onlineStatus === 'active' ? 'text-green-400 bg-green-950/20' : 'text-red-400 bg-red-950/20'
+                          isColabOnline(col) ? 'text-green-400 bg-green-950/20' : 'text-red-400 bg-red-950/20'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${col.onlineStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                          {col.onlineStatus === 'active' ? 'ACTIVO ONLINE' : 'DESCONECTADO'}
+                          <span className={`w-1.5 h-1.5 rounded-full ${isColabOnline(col) ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                          {isColabOnline(col) ? 'ACTIVO ONLINE' : 'DESCONECTADO'}
                         </span>
 
                         <div className="flex gap-1">
@@ -1857,15 +1869,18 @@ export default function TenantAdmin({
                       <span className="text-[10px] text-neutral-400 font-mono uppercase">Seguridad:</span>
                       <button
                         id={`logout-colab-btn-${col.id}`}
-                        onClick={() => forceLogoutColab(col.id)}
-                        disabled={!col.isActiveSession}
+                        onClick={() => {
+                          if (onKickColab && col.username) { onKickColab(col.username); }
+                          else { forceLogoutColab(col.id); }
+                        }}
+                        disabled={!isColabOnline(col)}
                         className={`text-[10px] font-mono px-3 py-1.5 rounded transition ${
-                          col.isActiveSession 
-                            ? 'bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/40' 
+                          isColabOnline(col)
+                            ? 'bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/40'
                             : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                         }`}
                       >
-                        {col.isActiveSession ? 'CERRAR SESIÓN' : 'SIN SESIÓN ACTIVA'}
+                        {isColabOnline(col) ? 'CERRAR SESIÓN' : 'SIN SESIÓN ACTIVA'}
                       </button>
                     </div>
                   </div>
