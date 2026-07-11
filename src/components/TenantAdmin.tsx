@@ -783,17 +783,18 @@ export default function TenantAdmin({
     }
   };
 
-  // Custom charts visualization calculations (NY style elegance)
-  const salesByDay = [
-    { day: 'Lun', sales: 1200 },
-    { day: 'Mar', sales: 1900 },
-    { day: 'Mié', sales: 1400 },
-    { day: 'Jue', sales: 2400 },
-    { day: 'Vie', sales: 3100 },
-    { day: 'Sáb', sales: 4500 },
-    { day: 'Dom', sales: totalSalesRevenue > 0 ? totalSalesRevenue : 2200 }
-  ];
-  const maxSalesVal = Math.max(...salesByDay.map(s => s.sales));
+  // Ventas reales de los últimos 7 días, sumadas por día (pedidos ENTREGADOS)
+  const etiquetasDia = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; // índice = getDay()
+  const ventasPorDia: Record<string, number> = { Lun: 0, Mar: 0, 'Mié': 0, Jue: 0, Vie: 0, 'Sáb': 0, Dom: 0 };
+  deliveredOrders
+    .filter(o => new Date(o.updatedAt || o.createdAt) >= startOfWeek)
+    .forEach(o => {
+      const d = new Date(o.updatedAt || o.createdAt).getDay();
+      const label = etiquetasDia[d];
+      if (label in ventasPorDia) ventasPorDia[label] += (o.totalAmount || 0);
+    });
+  const salesByDay = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => ({ day, sales: ventasPorDia[day] }));
+  const maxSalesVal = Math.max(1, ...salesByDay.map(s => s.sales));
 
   if (!isLoggedIn) {
     return (
@@ -1268,12 +1269,12 @@ export default function TenantAdmin({
                   {/* SVG Bar Chart with New York aesthetic */}
                   <div className="h-48 flex items-end gap-3 pt-6 border-b border-neutral-800 pb-2">
                     {salesByDay.map((s, idx) => {
-                      const pct = Math.max(10, (s.sales / maxSalesVal) * 100);
+                      const pct = s.sales > 0 ? Math.max(8, (s.sales / maxSalesVal) * 100) : 2;
                       return (
                         <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
                           {/* Hover tooltip */}
                           <div className="bg-neutral-950 text-amber-500 font-mono text-[9px] py-1 px-1.5 rounded border border-neutral-800 opacity-0 group-hover:opacity-100 transition mb-1 absolute transform -translate-y-12">
-                            ${s.sales}
+                            {formatAdminPrice(s.sales)}
                           </div>
                           {/* Column */}
                           <div 
@@ -1306,7 +1307,7 @@ export default function TenantAdmin({
                               <img src={col.avatarUrl} alt={col.name} className="w-8 h-8 rounded-full object-cover" />
                               {/* Traffic Light status dots */}
                               <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-neutral-900 ${
-                                col.onlineStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                                isColabOnline(col) ? 'bg-green-500 animate-pulse' : 'bg-red-500'
                               }`}></span>
                             </div>
                             <div>
@@ -1317,16 +1318,17 @@ export default function TenantAdmin({
 
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                              col.onlineStatus === 'active' ? 'text-green-400 bg-green-950/30' : 'text-red-400 bg-red-950/30'
+                              isColabOnline(col) ? 'text-green-400 bg-green-950/30' : 'text-red-400 bg-red-950/30'
                             }`}>
-                              {col.onlineStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
+                              {isColabOnline(col) ? 'ACTIVO' : 'INACTIVO'}
                             </span>
-                            {/* Fast toggle for simulation */}
+                            {/* Desconectar al vendedor (real) */}
                             <button
                               id={`toggle-colab-status-${col.id}`}
-                              onClick={() => toggleColabOnline(col.id)}
-                              className="p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white"
-                              title="Simular cambio de estado"
+                              onClick={() => { if (isColabOnline(col) && onKickColab && col.username) onKickColab(col.username); }}
+                              disabled={!isColabOnline(col)}
+                              className={`p-1 rounded ${isColabOnline(col) ? 'text-red-400 hover:bg-neutral-800 hover:text-red-300' : 'text-neutral-600 cursor-not-allowed'}`}
+                              title={isColabOnline(col) ? 'Desconectar a este vendedor' : 'Sin sesión activa'}
                             >
                               <Power className="w-3 h-3" />
                             </button>
