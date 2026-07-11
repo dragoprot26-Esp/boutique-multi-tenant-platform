@@ -33,6 +33,8 @@ interface TenantAdminProps {
   onChangeRole?: (role: 'customer' | 'admin' | 'collaborator') => void;
   presence?: Record<string, { online: boolean; last_seen: string }>;
   onKickColab?: (usuario: string) => void;
+  onListBackups?: () => Promise<any[]>;
+  onRestoreBackup?: (id: number) => Promise<boolean>;
 }
 
 export default function TenantAdmin({
@@ -53,7 +55,29 @@ export default function TenantAdmin({
   onChangeRole,
   presence,
   onKickColab,
+  onListBackups,
+  onRestoreBackup,
 }: TenantAdminProps) {
+  // Copias de seguridad (rollback)
+  const [backups, setBackups] = useState<any[]>([]);
+  const [backupsOpen, setBackupsOpen] = useState(false);
+  const [backupsBusy, setBackupsBusy] = useState(false);
+  const cargarBackups = async () => {
+    if (!onListBackups) return;
+    setBackupsBusy(true);
+    try { setBackups(await onListBackups()); setBackupsOpen(true); }
+    finally { setBackupsBusy(false); }
+  };
+  const restaurarBackup = async (id: number) => {
+    if (!onRestoreBackup) return;
+    if (!window.confirm('¿Restaurar esta copia? Se reemplazan los datos actuales por los de esa fecha. (La versión actual queda guardada por las dudas.)')) return;
+    setBackupsBusy(true);
+    try {
+      const ok = await onRestoreBackup(id);
+      alert(ok ? '✅ Copia restaurada. Ya están cargados los datos de esa fecha.' : 'No se pudo restaurar. Probá de nuevo.');
+      if (ok) setBackupsOpen(false);
+    } finally { setBackupsBusy(false); }
+  };
   const t = TRANSLATIONS[language] || TRANSLATIONS.es;
   // ¿Está online un colaborador? (presencia real; latido reciente < 90s)
   const isColabOnline = (col: Collaborator): boolean => {
@@ -2141,6 +2165,42 @@ export default function TenantAdmin({
                   </button>
                 </div>
               </form>
+
+              {role === 'admin' && onListBackups && (
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-serif font-bold text-stone-100">Copias de seguridad</h3>
+                      <p className="text-xs text-neutral-400">Si borrás algo por error, restaurá una versión anterior de tu tienda. Se guardan solas cada vez que hay cambios.</p>
+                    </div>
+                    <button type="button" onClick={cargarBackups} disabled={backupsBusy}
+                      className="shrink-0 bg-neutral-800 hover:bg-neutral-700 text-stone-100 text-xs font-mono px-4 py-2 rounded-lg border border-neutral-700 disabled:opacity-60">
+                      {backupsBusy ? 'Cargando…' : (backupsOpen ? 'Actualizar' : 'Ver copias')}
+                    </button>
+                  </div>
+
+                  {backupsOpen && (
+                    backups.length === 0 ? (
+                      <p className="text-xs text-neutral-500 font-mono">Todavía no hay copias guardadas. Se generan automáticamente cada vez que guardás cambios.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                        {backups.map((b) => (
+                          <div key={b.id} className="flex items-center justify-between gap-3 bg-neutral-950/60 border border-neutral-800/50 rounded-lg p-3">
+                            <div className="text-xs text-stone-300">
+                              <span className="font-mono block">{new Date(b.guardado).toLocaleString()}</span>
+                              <span className="text-[10px] text-neutral-500 font-mono">{b.productos} productos · {b.pedidos} pedidos · {b.colaboradores} vendedores</span>
+                            </div>
+                            <button type="button" onClick={() => restaurarBackup(b.id)} disabled={backupsBusy}
+                              className="shrink-0 text-[10px] font-mono px-3 py-1.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 disabled:opacity-60">
+                              Restaurar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           )}
 
