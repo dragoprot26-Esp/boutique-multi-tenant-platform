@@ -10,6 +10,7 @@ import TenantAdmin from './components/TenantAdmin';
 import {
   validarLicencia, asegurarCuentaSeguraDueno, asegurarCuentaSeguraColab,
   cloudLoad, cloudSave, btPublica, btAgregarPedido, signOut,
+  btPresenciaBeat, btPresenciaOff, btPresenciaList, btPresenciaKick,
 } from './cloud';
 import * as bio from './biometric';
 
@@ -57,6 +58,7 @@ export default function App() {
   const pendingBioRef = useRef<bio.BioCreds | null>(null);
   const [bioAvail, setBioAvail] = useState(false);
   const [bioOn, setBioOn] = useState(false);
+  const [presence, setPresence] = useState<Record<string, { online: boolean; last_seen: string }>>({});
 
   const panelRole: 'admin' | 'collaborator' = sessionRoleRef.current === 'colab' ? 'collaborator' : 'admin';
 
@@ -146,6 +148,9 @@ export default function App() {
     setIsLoggedIn(true);
     setShowLogin(false);
     setActiveRole(sessionRoleRef.current === 'colab' ? 'collaborator' : 'admin');
+    if (cod && sessionRoleRef.current === 'colab') {
+      btPresenciaBeat(cod, sessionUserRef.current, true); // limpia "kicked" y marca online
+    }
     if (bioAvail && !bio.bioEnabled() && pendingBioRef.current) {
       const creds = pendingBioRef.current;
       setTimeout(async () => {
@@ -178,9 +183,58 @@ export default function App() {
     } finally { setLoginBusy(false); }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const cod = getLic()?.codigo;
+    try {
+      // guardado sincrónico: evita perder cambios (ej. un vendedor recién creado)
+      if (cod && hydratedRef.current && tenant) {
+        await cloudSave(cod, { tenant, products, orders, collaborators });
+      }
+      if (cod && sessionRoleRef.current === 'colab') {
+        await btPresenciaOff(cod, sessionUserRef.current);
+      }
+    } catch (e) { /* noop */ }
     signOut(); hydratedRef.current = false;
+    setPresence({});
     setIsLoggedIn(false); setActiveRole('customer');
+  };
+
+  // El vendedor "late" cada 30s para figurar online. Si el dueño lo desconectó, sale.
+  useEffect(() => {
+    if (publicMode || !isLoggedIn || sessionRoleRef.current !== 'colab') return;
+    const cod = getLic()?.codigo; const usr = sessionUserRef.current;
+    if (!cod || !usr) return;
+    let stop = false;
+    const beat = async () => {
+      const r = await btPresenciaBeat(cod, usr);
+      if (!stop && r && r.kicked) { alert('El dueño cerró tu sesión.'); handleLogout(); }
+    };
+    const id = setInterval(beat, 30000);
+    return () => { stop = true; clearInterval(id); };
+  }, [isLoggedIn]);
+
+  // El dueño consulta la presencia de sus vendedores cada 15s.
+  useEffect(() => {
+    if (publicMode || !isLoggedIn || sessionRoleRef.current !== 'admin') return;
+    const cod = getLic()?.codigo; if (!cod) return;
+    let stop = false;
+    const load = async () => {
+      const list = await btPresenciaList(cod);
+      if (stop) return;
+      const map: Record<string, { online: boolean; last_seen: string }> = {};
+      list.forEach((p: any) => { if (p && p.usuario) map[String(p.usuario).toLowerCase()] = { online: !!p.online, last_seen: p.last_seen }; });
+      setPresence(map);
+    };
+    load();
+    const id = setInterval(load, 15000);
+    return () => { stop = true; clearInterval(id); };
+  }, [isLoggedIn]);
+
+  const handleKickColab = async (usuario: string) => {
+    const cod = getLic()?.codigo;
+    if (!cod || !usuario) return;
+    await btPresenciaKick(cod, usuario);
+    setPresence(prev => ({ ...prev, [usuario.toLowerCase()]: { online: false, last_seen: new Date().toISOString() } }));
   };
 
   const roleChange = (role: 'customer' | 'admin' | 'collaborator') => {
@@ -220,6 +274,8 @@ export default function App() {
             language={language}
             onChangeLanguage={setLanguage}
             onChangeRole={setActiveRole}
+            presence={presence}
+            onKickColab={handleKickColab}
           />
         </div>
       </div>

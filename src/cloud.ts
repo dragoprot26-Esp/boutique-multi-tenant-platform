@@ -201,3 +201,20 @@ export async function btAgregarPedido(codigo: string, pedido: any): Promise<bool
   try { const r = await rpc('bt_agregar_pedido', { p_codigo: codigo, p_pedido: pedido }, false); return !!(r && r.ok); }
   catch (e) { return false; }
 }
+
+// ── Presencia de colaboradores (online real entre dispositivos) ─────────
+export async function btPresenciaBeat(codigo: string, usuario: string, reset = false): Promise<any | null> {
+  try { return await rpc('bt_presencia_beat', { p_codigo: codigo, p_usuario: usuario, p_reset: reset }); }
+  catch (e) { return null; }
+}
+export async function btPresenciaOff(codigo: string, usuario: string): Promise<void> {
+  try { await rpc('bt_presencia_off', { p_codigo: codigo, p_usuario: usuario }); } catch (e) { /* noop */ }
+}
+export async function btPresenciaList(codigo: string): Promise<any[]> {
+  try { const r = await rpc('bt_presencia_list', { p_codigo: codigo }); return Array.isArray(r) ? r : []; }
+  catch (e) { return []; }
+}
+export async function btPresenciaKick(codigo: string, usuario: string): Promise<boolean> {
+  try { const r = await rpc('bt_presencia_kick', { p_codigo: codigo, p_usuario: usuario }); return !!(r && r.ok); }
+  catch (e) { return false; }
+}
