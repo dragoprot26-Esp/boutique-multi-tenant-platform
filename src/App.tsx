@@ -361,6 +361,11 @@ export default function App() {
                 <button type="button" onClick={() => setLoginStep('license')} className="w-full text-center text-[10px] text-neutral-400 hover:text-white">Cambiar licencia</button>
               </form>
             )}
+
+            <button type="button" onClick={() => setShowLogin(false)}
+              className="w-full mt-1 flex items-center justify-center gap-1.5 text-[11px] text-neutral-400 hover:text-amber-400 border-t border-neutral-800 pt-3">
+              ← Volver a la tienda
+            </button>
           </div>
         </div>
       )}
