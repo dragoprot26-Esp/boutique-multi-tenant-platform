@@ -218,3 +218,13 @@ export async function btPresenciaKick(codigo: string, usuario: string): Promise<
   try { const r = await rpc('bt_presencia_kick', { p_codigo: codigo, p_usuario: usuario }); return !!(r && r.ok); }
   catch (e) { return false; }
 }
+
+// ── Copias de seguridad / rollback ──────────────────────────────────────
+export async function btHistListar(codigo: string): Promise<any[]> {
+  try { const r = await rpc('bt_hist_listar', { p_codigo: codigo }); return Array.isArray(r) ? r : []; }
+  catch (e) { return []; }
+}
+export async function btHistRestaurar(codigo: string, id: number): Promise<any | null> {
+  try { const r = await rpc('bt_hist_restaurar', { p_codigo: codigo, p_id: id }); return (r && r.ok) ? r.datos : null; }
+  catch (e) { return null; }
+}

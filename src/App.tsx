@@ -11,6 +11,7 @@ import {
   validarLicencia, asegurarCuentaSeguraDueno, asegurarCuentaSeguraColab,
   cloudLoad, cloudSave, btPublica, btAgregarPedido, signOut,
   btPresenciaBeat, btPresenciaOff, btPresenciaList, btPresenciaKick,
+  btHistListar, btHistRestaurar,
 } from './cloud';
 import * as bio from './biometric';
 
@@ -237,6 +238,21 @@ export default function App() {
     setPresence(prev => ({ ...prev, [usuario.toLowerCase()]: { online: false, last_seen: new Date().toISOString() } }));
   };
 
+  // Copias de seguridad: listar y restaurar
+  const handleListBackups = async () => {
+    const cod = getLic()?.codigo;
+    if (!cod) return [];
+    return await btHistListar(cod);
+  };
+  const handleRestoreBackup = async (id: number) => {
+    const cod = getLic()?.codigo;
+    if (!cod) return false;
+    const datos = await btHistRestaurar(cod, id);
+    if (!datos) return false;
+    hydrate(datos, cod); // recarga la app con la copia restaurada
+    return true;
+  };
+
   const roleChange = (role: 'customer' | 'admin' | 'collaborator') => {
     if (!isLoggedIn && (role === 'admin' || role === 'collaborator')) { openLogin(); return; }
     setActiveRole(role);
@@ -276,6 +292,8 @@ export default function App() {
             onChangeRole={setActiveRole}
             presence={presence}
             onKickColab={handleKickColab}
+            onListBackups={handleListBackups}
+            onRestoreBackup={handleRestoreBackup}
           />
         </div>
       </div>
