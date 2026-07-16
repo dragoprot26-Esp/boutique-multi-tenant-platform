@@ -30,6 +30,15 @@ function tenantDefault(codigo: string, nombre?: string): Tenant {
   } as Tenant;
 }
 
+// Une pedidos locales + nube por id. Los del cliente (movil) que no estan localmente se suman;
+// los cambios locales del admin (estado del pedido) ganan sobre los mismos ids.
+function mergeOrders(local: Order[], cloud: Order[]): Order[] {
+  const m = new Map<string, Order>();
+  (cloud || []).forEach((o: any) => { if (o && o.id) m.set(o.id, o); });
+  (local || []).forEach((o: any) => { if (o && o.id) m.set(o.id, o); });
+  return Array.from(m.values());
+}
+
 export default function App() {
   const publicCode = codigoURL();
   const publicMode = !!publicCode;
@@ -100,9 +109,40 @@ export default function App() {
     if (publicMode || !isLoggedIn || !hydratedRef.current || !tenant) return;
     const cod = getLic()?.codigo;
     if (!cod) return;
-    const t = setTimeout(() => { cloudSave(cod, { tenant, products, orders, collaborators }); }, 900);
+    const t = setTimeout(async () => {
+      // Merge con la nube antes de guardar, asi no pisamos pedidos nuevos del cliente (movil).
+      let ordersToSave = orders;
+      try {
+        const cloudNow: any = await cloudLoad(cod);
+        const cloudOrders = Array.isArray(cloudNow?.orders) ? cloudNow.orders : [];
+        ordersToSave = mergeOrders(orders, cloudOrders);
+        if (JSON.stringify(ordersToSave) !== JSON.stringify(orders)) setOrders(ordersToSave);
+      } catch (e) { /* si falla, guarda lo local */ }
+      cloudSave(cod, { tenant, products, orders: ordersToSave, collaborators });
+    }, 900);
     return () => clearTimeout(t);
   }, [tenant, products, orders, collaborators]);
+
+  // Refresco periodico: trae pedidos hechos desde otros dispositivos (ej. el cliente en el movil).
+  useEffect(() => {
+    if (publicMode || !isLoggedIn) return;
+    const cod = getLic()?.codigo;
+    if (!cod) return;
+    let alive = true;
+    const iv = setInterval(async () => {
+      try {
+        const data: any = await cloudLoad(cod);
+        const cloudOrders = Array.isArray(data?.orders) ? data.orders : [];
+        if (!alive) return;
+        setOrders(prev => {
+          const merged = mergeOrders(prev, cloudOrders);
+          return JSON.stringify(merged) === JSON.stringify(prev) ? prev : merged;
+        });
+      } catch (e) { /* noop */ }
+    }, 12000);
+    return () => { alive = false; clearInterval(iv); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   const openLogin = () => { setLoginError(''); const lic = getLic(); setLoginStep(lic ? 'credentials' : 'license'); setShowLogin(true); };
 
