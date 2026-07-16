@@ -722,6 +722,37 @@ export default function TenantAdmin({
     printWindow.document.close();
   };
 
+  const handlePrintQR = () => {
+    const publicLink = window.location.origin + '/?codigo=' + tenant.license;
+    const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=10&data=' + encodeURIComponent(publicLink);
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(
+      '<html><head><title>QR - ' + tenant.name + '</title>' +
+      '<style>' +
+      '@page { size: A4; margin: 0; }' +
+      'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin:0; color:#111827; }' +
+      '.page { width:210mm; min-height:297mm; box-sizing:border-box; padding:26mm 20mm; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; }' +
+      '.name { font-size:40px; font-weight:800; letter-spacing:1px; margin:0 0 6px; }' +
+      '.tag { font-size:14px; letter-spacing:4px; text-transform:uppercase; color:#b45309; margin:0 0 28px; }' +
+      '.qr { width:340px; height:340px; border:2px solid #111827; border-radius:18px; padding:14px; }' +
+      '.cta { font-size:26px; font-weight:800; margin:30px 0 10px; }' +
+      '.sub { font-size:17px; color:#374151; max-width:150mm; line-height:1.55; margin:0 auto; }' +
+      '.foot { margin-top:34px; font-size:12px; color:#9ca3af; font-family:monospace; }' +
+      '</style></head><body>' +
+      '<div class="page">' +
+      '<div class="name">' + tenant.name.toUpperCase() + '</div>' +
+      '<div class="tag">Tienda online</div>' +
+      '<img class="qr" src="' + qr + '" referrerpolicy="no-referrer" alt="QR" onload="setTimeout(function(){window.print();},250)" />' +
+      '<div class="cta">Escanea y mira nuestras ofertas antes que nadie</div>' +
+      '<div class="sub">Apunta la camara de tu celular al codigo y entra a nuestra tienda online: mira todos los productos, precios y promos. Compra desde tu casa y retira en el local. Se el primero en enterarte de las novedades.</div>' +
+      '<div class="foot">' + publicLink + '</div>' +
+      '</div>' +
+      '</body></html>'
+    );
+    w.document.close();
+  };
+
   const handleDownloadExcel = () => {
     const headers = ['CÓDIGO RETIRO', 'CLIENTE', 'DETALLE CALZADO', 'TOTAL COBRADO', 'CONCRETADO POR', 'FECHA DE ENTREGA'];
     const rows = deliveredOrders.map(o => {
@@ -1918,6 +1949,38 @@ export default function TenantAdmin({
           {/* TAB 5: TENANT PROFILE AND CUSTOM CATEGORIES SEO */}
           {activeTab === 'settings' && (
             <div className="space-y-6">
+              {/* QR de la tienda: descargar / imprimir para colgar en el local */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-4 shadow-sm">
+                <div>
+                  <h3 className="text-base font-serif font-bold text-stone-100">Tu QR para el local</h3>
+                  <p className="text-xs text-neutral-400">Descargalo o imprimilo y colgalo en tu negocio. Tus clientes lo escanean y ven tus productos desde el celular.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-5">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data=${encodeURIComponent(window.location.origin + '/?codigo=' + tenant.license)}`}
+                    alt="QR de la tienda"
+                    referrerPolicy="no-referrer"
+                    className="w-40 h-40 rounded-lg bg-white p-2 shrink-0"
+                  />
+                  <div className="flex-1 w-full space-y-3">
+                    <div className="text-[11px] font-mono text-amber-400 break-all bg-neutral-950 border border-neutral-800 rounded px-3 py-2">{window.location.origin + '/?codigo=' + tenant.license}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&margin=20&data=${encodeURIComponent(window.location.origin + '/?codigo=' + tenant.license)}`}
+                        download={`QR-${tenant.name}.png`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-stone-100 text-xs font-semibold py-2.5 rounded-lg"
+                      >Descargar QR</a>
+                      <button
+                        type="button"
+                        onClick={handlePrintQR}
+                        className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold py-2.5 rounded-lg"
+                      >Imprimir PDF</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <form onSubmit={handleSaveSettings} className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-6 shadow-sm">
                 <div>
                   <h3 className="text-base font-serif font-bold text-stone-100">Ficha Técnica e Imagen de Boutique</h3>
