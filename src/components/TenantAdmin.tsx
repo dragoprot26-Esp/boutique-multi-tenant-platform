@@ -1,3 +1,4 @@
+import { comprimirImagen } from '../img';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -2012,17 +2013,11 @@ export default function TenantAdmin({
                           id="settings-hero-file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                if (typeof reader.result === 'string') {
-                                  setSettsHero(reader.result);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
+                            if (!file) return;
+                            const r = await comprimirImagen(file, 1400, 0.72);
+                            if (r) setSettsHero(r);
                           }}
                         />
                         <label
@@ -2398,19 +2393,14 @@ export default function TenantAdmin({
                               id={fileInputId}
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    if (typeof reader.result === 'string') {
-                                      const copy = [...prodImages];
-                                      copy[idx] = reader.result;
-                                      setProdImages(copy);
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
+                                if (!file) return;
+                                const r = await comprimirImagen(file, 1000, 0.72);
+                                if (!r) { alert('No se pudo procesar la imagen.'); return; }
+                                const copy = [...prodImages];
+                                copy[idx] = r;
+                                setProdImages(copy);
                               }}
                             />
                             <label
@@ -2727,17 +2717,11 @@ export default function TenantAdmin({
                           id="colab-avatar-file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                if (typeof reader.result === 'string') {
-                                  setColabAvatar(reader.result);
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
+                            if (!file) return;
+                            const r = await comprimirImagen(file, 400, 0.8);
+                            if (r) setColabAvatar(r);
                           }}
                         />
                         <label
