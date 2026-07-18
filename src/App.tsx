@@ -99,6 +99,20 @@ export default function App() {
     })();
   }, []);
 
+  // PÚBLICO: refresco en vivo del catálogo/config cada 12s (sin recargar la página)
+  useEffect(() => {
+    if (!publicMode || !shownCode) return;
+    let alive = true;
+    const iv = setInterval(async () => {
+      const r = await btPublica(shownCode);
+      if (!alive || !r || !r.ok) return;
+      setTenant(prev => ({ ...(prev || tenantDefault(shownCode)), ...(r.tenant || {}), id: shownCode, license: shownCode } as Tenant));
+      setProducts(Array.isArray(r.products) ? r.products : []);
+    }, 12000);
+    return () => { alive = false; clearInterval(iv); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (publicMode) return;
     bio.bioSupported().then(setBioAvail);
