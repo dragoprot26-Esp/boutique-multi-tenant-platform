@@ -9,7 +9,7 @@ import NYStorefront from './components/NYStorefront';
 import TenantAdmin from './components/TenantAdmin';
 import {
   validarLicencia, asegurarCuentaSeguraDueno, asegurarCuentaSeguraColab,
-  cloudLoad, cloudSave, btPublica, btAgregarPedido, signOut,
+  cloudLoad, cloudSave, btPublica, btAgregarPedido, btPedidos, btVersion, signOut,
   btPresenciaBeat, btPresenciaOff, btPresenciaList, btPresenciaKick,
   btHistListar, btHistRestaurar,
 } from './cloud';
@@ -103,12 +103,16 @@ export default function App() {
   useEffect(() => {
     if (!publicMode || !shownCode) return;
     let alive = true;
+    let lastVer = '';
     const iv = setInterval(async () => {
+      const ver = await btVersion(shownCode); // liviano: solo timestamp
+      if (!alive || !ver || ver === lastVer) return; // nada cambió → no baja imágenes
       const r = await btPublica(shownCode);
       if (!alive || !r || !r.ok) return;
+      lastVer = ver;
       setTenant(prev => ({ ...(prev || tenantDefault(shownCode)), ...(r.tenant || {}), id: shownCode, license: shownCode } as Tenant));
       setProducts(Array.isArray(r.products) ? r.products : []);
-    }, 12000);
+    }, 30000);
     return () => { alive = false; clearInterval(iv); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -127,8 +131,7 @@ export default function App() {
       // Merge con la nube antes de guardar, asi no pisamos pedidos nuevos del cliente (movil).
       let ordersToSave = orders;
       try {
-        const cloudNow: any = await cloudLoad(cod);
-        const cloudOrders = Array.isArray(cloudNow?.orders) ? cloudNow.orders : [];
+        const cloudOrders = await btPedidos(cod); // liviano: solo pedidos, sin imágenes
         ordersToSave = mergeOrders(orders, cloudOrders);
         if (JSON.stringify(ordersToSave) !== JSON.stringify(orders)) setOrders(ordersToSave);
       } catch (e) { /* si falla, guarda lo local */ }
@@ -145,15 +148,14 @@ export default function App() {
     let alive = true;
     const iv = setInterval(async () => {
       try {
-        const data: any = await cloudLoad(cod);
-        const cloudOrders = Array.isArray(data?.orders) ? data.orders : [];
+        const cloudOrders = await btPedidos(cod); // liviano: solo pedidos
         if (!alive) return;
         setOrders(prev => {
           const merged = mergeOrders(prev, cloudOrders);
           return JSON.stringify(merged) === JSON.stringify(prev) ? prev : merged;
         });
       } catch (e) { /* noop */ }
-    }, 12000);
+    }, 30000);
     return () => { alive = false; clearInterval(iv); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);

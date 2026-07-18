@@ -228,3 +228,13 @@ export async function btHistRestaurar(codigo: string, id: number): Promise<any |
   try { const r = await rpc('bt_hist_restaurar', { p_codigo: codigo, p_id: id }); return (r && r.ok) ? r.datos : null; }
   catch (e) { return null; }
 }
+
+// ── Optimización de egress: endpoints livianos ──
+export async function btPedidos(codigo: string): Promise<any[]> {
+  try { const r = await rpc('bt_pedidos', { p_codigo: codigo }); return Array.isArray(r) ? r : []; }
+  catch (e) { return []; }
+}
+export async function btVersion(codigo: string): Promise<string> {
+  try { const r = await rpc('bt_version', { p_codigo: codigo }, false); return typeof r === 'string' ? r : String(r || ''); }
+  catch (e) { return ''; }
+}
