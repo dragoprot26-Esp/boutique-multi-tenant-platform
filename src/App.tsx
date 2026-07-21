@@ -54,6 +54,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [lastAdminRole, setLastAdminRole] = useState<'admin' | 'collaborator'>('admin');
   const [cargando, setCargando] = useState(!!shownCode);
+  const [bloqueada, setBloqueada] = useState(false);
 
   const [showLogin, setShowLogin] = useState(false);
   const [loginStep, setLoginStep] = useState<'license' | 'credentials'>('license');
@@ -89,6 +90,7 @@ export default function App() {
     if (!shownCode) { setCargando(false); return; }
     (async () => {
       const r = await btPublica(shownCode);
+      if (r && (r as any).bloqueada) { setBloqueada(true); setCargando(false); return; }  // kill switch
       if (r && r.ok) {
         setTenant({ ...tenantDefault(shownCode), ...(r.tenant || {}), id: shownCode, license: shownCode } as Tenant);
         setProducts(Array.isArray(r.products) ? r.products : []);
@@ -108,7 +110,10 @@ export default function App() {
       const ver = await btVersion(shownCode); // liviano: solo timestamp
       if (!alive || !ver || ver === lastVer) return; // nada cambió → no baja imágenes
       const r = await btPublica(shownCode);
-      if (!alive || !r || !r.ok) return;
+      if (!alive || !r) return;
+      if ((r as any).bloqueada) { setBloqueada(true); return; }  // kill switch
+      setBloqueada(false);
+      if (!r.ok) return;
       lastVer = ver;
       setTenant(prev => ({ ...(prev || tenantDefault(shownCode)), ...(r.tenant || {}), id: shownCode, license: shownCode } as Tenant));
       setProducts(Array.isArray(r.products) ? r.products : []);
@@ -324,6 +329,23 @@ export default function App() {
 
   if (cargando) {
     return <div className="bg-neutral-950 text-amber-500 min-h-screen flex items-center justify-center font-mono text-sm">Cargando boutique…</div>;
+  }
+
+  // Kill switch: si el dueño bloqueó la pública, el visitante ve "En Mantenimiento".
+  if (bloqueada && shownCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-neutral-950 text-neutral-100 font-sans">
+        <div className="max-w-md w-full text-center bg-neutral-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <div className="text-5xl mb-4">🛠️</div>
+          <h1 className="text-2xl font-black tracking-tight mb-2">En Mantenimiento</h1>
+          <p className="text-sm text-neutral-400 leading-relaxed">
+            Estamos trabajando para brindarte una mejor experiencia. La página vuelve muy pronto.
+            <br /><br />¡Gracias por tu paciencia! Saludos cordiales. 🙌
+          </p>
+          <div className="mt-6 h-1 w-16 bg-amber-500 rounded-full mx-auto"></div>
+        </div>
+      </div>
+    );
   }
 
   if (isLoggedIn && activeRole !== 'customer' && tenant) {
