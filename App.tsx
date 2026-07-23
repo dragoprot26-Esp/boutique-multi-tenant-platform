@@ -20,6 +20,24 @@ function getLic(): Lic | null { try { return JSON.parse(localStorage.getItem('bt
 function saveLic(l: Lic) { localStorage.setItem('bt_licencia', JSON.stringify(l)); }
 function codigoURL(): string | null { try { return new URLSearchParams(window.location.search).get('codigo'); } catch { return null; } }
 
+// Fusiona pedidos de dos dispositivos: por cada id gana la versión con
+// updatedAt más NUEVO (así el "Entregado" del celular pisa al "En preparación"
+// viejo de la PC, y viceversa). Devuelve la lista ordenada con los MÁS NUEVOS
+// ARRIBA (por createdAt).
+function fusionarOrders(a: any[], b: any[]): any[] {
+  const map: Record<string, any> = {};
+  [...(a || []), ...(b || [])].forEach((o: any) => {
+    if (!o || !o.id) return;
+    const ex = map[o.id];
+    if (!ex) { map[o.id] = o; return; }
+    const to = new Date(o.updatedAt || o.createdAt || 0).getTime();
+    const te = new Date(ex.updatedAt || ex.createdAt || 0).getTime();
+    map[o.id] = to >= te ? o : ex;
+  });
+  return Object.values(map).sort((x: any, y: any) =>
+    new Date(y.createdAt || 0).getTime() - new Date(x.createdAt || 0).getTime());
+}
+
 function tenantDefault(codigo: string, nombre?: string): Tenant {
   return {
     id: codigo, license: codigo, username: '', passwordHash: '',
@@ -133,9 +151,8 @@ export default function App() {
             if (otros.length) prods = [...prods, ...otros];
           }
           if (Array.isArray(remoto.orders)) {
-            const mios = new Set(ords.map((o: any) => o && o.id));
-            const otros = remoto.orders.filter((o: any) => o && o.id && !mios.has(o.id));
-            if (otros.length) ords = [...ords, ...otros];
+            // Reconciliar estado de pedidos por updatedAt (no solo agregar nuevos).
+            ords = fusionarOrders(ords, remoto.orders);
           }
         }
       } catch (e) { /* si falla la lectura, guardamos lo local igual */ }
@@ -302,9 +319,8 @@ export default function App() {
       }
       if (Array.isArray(d.orders)) {
         setOrders(prev => {
-          const ids = new Set(prev.map((o: any) => o && o.id));
-          const nuevos = d.orders.filter((o: any) => o && o.id && !ids.has(o.id));
-          return nuevos.length ? [...nuevos, ...prev] : prev;
+          const merged = fusionarOrders(prev, d.orders);
+          return JSON.stringify(merged) !== JSON.stringify(prev) ? merged : prev;
         });
       }
     };
