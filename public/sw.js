@@ -6,7 +6,7 @@
  *  - Pedidos a Supabase u otros orígenes: pasan de largo (no se cachean).
  * Subir la versión (CACHE) fuerza a limpiar lo viejo cuando publiques cambios.
  */
-const CACHE = 'boutique-v1';
+const CACHE = 'boutique-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
