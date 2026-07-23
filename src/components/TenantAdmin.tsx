@@ -469,7 +469,12 @@ export default function TenantAdmin({
 
   const handleDeleteColab = (id: string) => {
     if (confirm('¿Está seguro de remover a este colaborador?')) {
-      const updated = collaborators.filter(c => c.id !== id);
+      // Borrado SUAVE: lo marcamos como eliminado en vez de sacarlo. Así el
+      // borrado se respeta al fusionar las listas del celular y la PC (si lo
+      // sacáramos, el otro dispositivo lo volvería a agregar).
+      const updated = collaborators.map(c =>
+        c.id === id ? ({ ...c, eliminado: true, username: '', password: '' } as any) : c
+      );
       onUpdateCollaborators(updated);
     }
   };
@@ -610,7 +615,7 @@ export default function TenantAdmin({
   // Compute stats
   const activeTenantProducts = products.filter(p => p.tenantId === tenant.id);
   const activeTenantOrders = orders.filter(o => o.tenantId === tenant.id);
-  const activeTenantColabs = collaborators.filter(c => c.tenantId === tenant.id);
+  const activeTenantColabs = collaborators.filter(c => c.tenantId === tenant.id && !(c as any).eliminado);
 
   const currentCollaborator = activeTenantColabs.find(c => c.id === activeColabId) || activeTenantColabs[0];
 
