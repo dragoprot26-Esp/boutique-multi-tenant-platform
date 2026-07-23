@@ -100,7 +100,47 @@ export default function App() {
     if (publicMode || !isLoggedIn || !hydratedRef.current || !tenant) return;
     const cod = getLic()?.codigo;
     if (!cod) return;
-    const t = setTimeout(() => { cloudSave(cod, { tenant, products, orders, collaborators }); }, 900);
+    const t = setTimeout(async () => {
+      // Guardado NO destructivo: antes de subir, traemos lo último de la nube y
+      // FUSIONAMOS por id. Así este dispositivo no borra lo que cargó el otro
+      // (por ej. un vendedor creado desde el celular mientras la PC tenía la
+      // lista vieja). Sin esto, el último en guardar pisaba al otro.
+      let cols = collaborators, prods = products, ords = orders;
+      try {
+        const remoto: any = await cloudLoad(cod);
+        if (remoto) {
+          if (Array.isArray(remoto.collaborators)) {
+            const porId: Record<string, any> = {};
+            remoto.collaborators.forEach((c: any) => { if (c && c.id) porId[c.id] = c; });
+            // Conservar credenciales de la nube si acá vinieran vacías (candado).
+            cols = cols.map((c: any) => {
+              const v = porId[c && c.id];
+              if (!v) return c;
+              return {
+                ...c,
+                username: (c.username && String(c.username).trim()) ? c.username : v.username,
+                password: (c.password && String(c.password).trim()) ? c.password : v.password,
+              };
+            });
+            // Sumar los que están en la nube y acá no (los creó el otro equipo).
+            const mios = new Set(cols.map((c: any) => c && c.id));
+            const otros = remoto.collaborators.filter((c: any) => c && c.id && !mios.has(c.id));
+            if (otros.length) cols = [...cols, ...otros];
+          }
+          if (Array.isArray(remoto.products)) {
+            const mios = new Set(prods.map((p: any) => p && p.id));
+            const otros = remoto.products.filter((p: any) => p && p.id && !mios.has(p.id));
+            if (otros.length) prods = [...prods, ...otros];
+          }
+          if (Array.isArray(remoto.orders)) {
+            const mios = new Set(ords.map((o: any) => o && o.id));
+            const otros = remoto.orders.filter((o: any) => o && o.id && !mios.has(o.id));
+            if (otros.length) ords = [...ords, ...otros];
+          }
+        }
+      } catch (e) { /* si falla la lectura, guardamos lo local igual */ }
+      cloudSave(cod, { tenant, products: prods, orders: ords, collaborators: cols });
+    }, 900);
     return () => clearTimeout(t);
   }, [tenant, products, orders, collaborators]);
 
@@ -230,6 +270,48 @@ export default function App() {
     const id = setInterval(load, 15000);
     return () => { stop = true; clearInterval(id); };
   }, [isLoggedIn]);
+
+  // Sincronización de bajada: cada 15s traemos de la nube los vendedores,
+  // productos y pedidos nuevos que cargó el otro dispositivo (celular ↔ PC).
+  useEffect(() => {
+    if (publicMode || !isLoggedIn) return;
+    const cod = getLic()?.codigo; if (!cod) return;
+    let stop = false;
+    const traer = async () => {
+      const d: any = await cloudLoad(cod);
+      if (stop || !d) return;
+      if (Array.isArray(d.collaborators)) {
+        setCollaborators(prev => {
+          const porId: Record<string, any> = {};
+          prev.forEach((c: any) => { if (c && c.id) porId[c.id] = c; });
+          let cambio = false;
+          const fusion = d.collaborators.map((r: any) => {
+            const local = porId[r && r.id];
+            if (!local) { cambio = true; return r; }
+            if (JSON.stringify(local) !== JSON.stringify(r)) { cambio = true; return r; }
+            return local;
+          });
+          const enRemoto = new Set(d.collaborators.map((c: any) => c && c.id));
+          const soloLocales = prev.filter((c: any) => c && c.id && !enRemoto.has(c.id));
+          if (soloLocales.length) cambio = true;
+          return cambio ? [...fusion, ...soloLocales] : prev;
+        });
+      }
+      if (Array.isArray(d.products)) {
+        setProducts(prev => JSON.stringify(prev) !== JSON.stringify(d.products) ? d.products : prev);
+      }
+      if (Array.isArray(d.orders)) {
+        setOrders(prev => {
+          const ids = new Set(prev.map((o: any) => o && o.id));
+          const nuevos = d.orders.filter((o: any) => o && o.id && !ids.has(o.id));
+          return nuevos.length ? [...nuevos, ...prev] : prev;
+        });
+      }
+    };
+    traer();
+    const id = setInterval(traer, 15000);
+    return () => { stop = true; clearInterval(id); };
+  }, [isLoggedIn, publicMode]);
 
   const handleKickColab = async (usuario: string) => {
     const cod = getLic()?.codigo;
