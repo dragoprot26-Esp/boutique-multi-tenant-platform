@@ -614,7 +614,10 @@ export default function TenantAdmin({
 
   // Compute stats
   const activeTenantProducts = products.filter(p => p.tenantId === tenant.id);
-  const activeTenantOrders = orders.filter(o => o.tenantId === tenant.id);
+  const activeTenantOrders = orders
+    .filter(o => o.tenantId === tenant.id)
+    // Los encargos MÁS NUEVOS primero (arriba).
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   const activeTenantColabs = collaborators.filter(c => c.tenantId === tenant.id && !(c as any).eliminado);
 
   const currentCollaborator = activeTenantColabs.find(c => c.id === activeColabId) || activeTenantColabs[0];
